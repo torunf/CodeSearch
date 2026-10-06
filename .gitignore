@@ -1,0 +1,27 @@
+# Build output
+bin/
+obj/
+publish/
+dist/
+artifacts/
+*.user
+*.suo
+.vs/
+.idea/
+*.swp
+
+# Installer output
+installer/Output/
+
+# AI assistant / local tooling files
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+AGENTS.md
+.cursor/
+.aider*
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
