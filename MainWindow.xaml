@@ -1,0 +1,250 @@
+<Window x:Class="CodeSearch.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:CodeSearch"
+        xmlns:ae="http://icsharpcode.net/sharpdevelop/avalonedit"
+        Title="CodeSearch" Icon="app.ico" Height="820" Width="1320" MinWidth="760" MinHeight="480"
+        Background="White" FontFamily="Segoe UI" FontSize="13"
+        WindowStartupLocation="CenterScreen">
+    <Window.InputBindings>
+        <KeyBinding Key="D1" Modifiers="Control" Command="{x:Static local:MainWindow.ModeNameCmd}"/>
+        <KeyBinding Key="D2" Modifiers="Control" Command="{x:Static local:MainWindow.ModeContentCmd}"/>
+        <KeyBinding Key="F" Modifiers="Control" Command="{x:Static local:MainWindow.FocusSearchCmd}"/>
+        <KeyBinding Key="Tab" Modifiers="Control" Command="{x:Static local:MainWindow.ToggleModeCmd}"/>
+    </Window.InputBindings>
+    <Grid>
+        <Grid x:Name="MainArea">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition x:Name="PreviewRow" Height="260"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Top bar: mode + search -->
+            <Border Grid.Row="0" Background="{StaticResource Bar}" BorderBrush="{StaticResource Border}" BorderThickness="0,0,0,1" Padding="12,10">
+                <DockPanel LastChildFill="True">
+                    <Border DockPanel.Dock="Left" Background="White" BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="8" Padding="3" Margin="0,0,12,0">
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="ModeName" Style="{StaticResource ModeButton}" GroupName="mode" IsChecked="True"
+                                         Checked="Mode_Changed" ToolTip="{local:L mode_name_tip}">
+                                <TextBlock><Run Text="📁 "/><Run Text="{local:L mode_name}"/></TextBlock>
+                            </RadioButton>
+                            <RadioButton x:Name="ModeContent" Style="{StaticResource ModeButton}" GroupName="mode"
+                                         Checked="Mode_Changed" ToolTip="{local:L mode_content_tip}">
+                                <TextBlock><Run Text="{}{ } "/><Run Text="{local:L mode_content}"/></TextBlock>
+                            </RadioButton>
+                        </StackPanel>
+                    </Border>
+                    <Button DockPanel.Dock="Right" x:Name="SettingsBtn" Style="{StaticResource Btn}" Margin="12,0,0,0" Click="Settings_Click"
+                            ToolTip="{local:L settings_tip}" Content="{local:L settings_btn}"/>
+                    <Grid>
+                        <TextBox x:Name="SearchBox" FontSize="16" Padding="10,6" VerticalContentAlignment="Center"
+                                 BorderBrush="{StaticResource Border}" TextChanged="SearchBox_TextChanged" PreviewKeyDown="SearchBox_PreviewKeyDown"/>
+                        <TextBlock x:Name="Placeholder" IsHitTestVisible="False" Margin="14,0,0,0" VerticalAlignment="Center"
+                                   Foreground="#9CA3AF" FontSize="15"/>
+                    </Grid>
+                </DockPanel>
+            </Border>
+
+            <!-- Options -->
+            <Border Grid.Row="1" BorderBrush="{StaticResource Border}" BorderThickness="0,0,0,1" Padding="12,6">
+                <DockPanel>
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <CheckBox x:Name="OptCase" Content="{local:L opt_case}" Click="Option_Changed"/>
+                        <CheckBox x:Name="OptWord" Content="{local:L opt_word}" Click="Option_Changed"/>
+                        <CheckBox x:Name="OptRegex" Content="{local:L opt_regex}" Click="Option_Changed"/>
+                        <StackPanel x:Name="FilterPanel" Orientation="Horizontal">
+                            <TextBlock Text="{local:L file_filter}" VerticalAlignment="Center" Foreground="{StaticResource Muted}" Margin="6,0,6,0"/>
+                            <TextBox x:Name="FileFilter" Width="260" Padding="4,2" TextChanged="Option_Changed"
+                                     ToolTip="{local:L file_filter_tip}"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <TextBlock x:Name="HelpText" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{StaticResource Muted}" FontSize="12"
+                               TextTrimming="CharacterEllipsis"/>
+                </DockPanel>
+            </Border>
+
+            <!-- Results -->
+            <ListView x:Name="NameList" Grid.Row="2" BorderThickness="0" VirtualizingPanel.IsVirtualizing="True"
+                      VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Pixel"
+                      MouseDoubleClick="List_DoubleClick" KeyDown="List_KeyDown" SelectionMode="Extended">
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Header="{local:L col_name}" Width="360">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Icon}" Margin="0,0,6,0"/>
+                                        <TextBlock local:Hl.Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
+                                    </StackPanel>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                        <GridViewColumn Header="{local:L col_folder}" Width="560">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Folder}" Foreground="#4B5563" TextTrimming="CharacterEllipsis"/>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                        <GridViewColumn Header="{local:L col_size}" Width="90">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Size, IsAsync=False}" HorizontalAlignment="Right"/>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                        <GridViewColumn Header="{local:L col_modified}" Width="140" DisplayMemberBinding="{Binding Modified}"/>
+                    </GridView>
+                </ListView.View>
+                <ListView.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="{local:L ctx_open}" Click="Ctx_Open" InputGestureText="Enter"/>
+                        <MenuItem Header="{local:L ctx_code}" Click="Ctx_Code"/>
+                        <MenuItem Header="{local:L ctx_reveal}" Click="Ctx_Reveal" InputGestureText="Ctrl+Enter"/>
+                        <Separator/>
+                        <MenuItem Header="{local:L ctx_copy_path}" Click="Ctx_CopyPath" InputGestureText="Ctrl+C"/>
+                        <MenuItem Header="{local:L ctx_copy_name}" Click="Ctx_CopyName"/>
+                    </ContextMenu>
+                </ListView.ContextMenu>
+            </ListView>
+
+            <ListView x:Name="ContentList" Grid.Row="2" BorderThickness="0" Visibility="Collapsed"
+                      VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling" VirtualizingPanel.ScrollUnit="Pixel"
+                      MouseDoubleClick="List_DoubleClick" KeyDown="List_KeyDown" SelectionChanged="ContentList_SelectionChanged" SelectionMode="Extended">
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Header="{local:L col_file}" Width="230">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                        <GridViewColumn Header="{local:L col_line}" Width="60">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Line}" HorizontalAlignment="Right" Foreground="{StaticResource Muted}"/>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                        <GridViewColumn Header="{local:L col_content}" Width="640">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock local:Hl.Text="{Binding Text}" FontFamily="Cascadia Mono, Consolas" FontSize="12.5" TextTrimming="CharacterEllipsis"/>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                        <GridViewColumn Header="{local:L col_folder}" Width="380">
+                            <GridViewColumn.CellTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Folder}" Foreground="#4B5563" TextTrimming="CharacterEllipsis"/>
+                                </DataTemplate>
+                            </GridViewColumn.CellTemplate>
+                        </GridViewColumn>
+                    </GridView>
+                </ListView.View>
+                <ListView.ContextMenu>
+                    <ContextMenu>
+                        <MenuItem Header="{local:L ctx_code_line}" Click="Ctx_Code" InputGestureText="Enter"/>
+                        <MenuItem Header="{local:L ctx_open_default}" Click="Ctx_Open"/>
+                        <MenuItem Header="{local:L ctx_reveal}" Click="Ctx_Reveal" InputGestureText="Ctrl+Enter"/>
+                        <Separator/>
+                        <MenuItem Header="{local:L ctx_copy_path}" Click="Ctx_CopyPath" InputGestureText="Ctrl+C"/>
+                        <MenuItem Header="{local:L ctx_copy_line}" Click="Ctx_CopyLine"/>
+                    </ContextMenu>
+                </ListView.ContextMenu>
+            </ListView>
+
+            <GridSplitter x:Name="PreviewSplitter" Grid.Row="3" Height="5" HorizontalAlignment="Stretch" Background="{StaticResource Border}" ResizeBehavior="PreviousAndNext"/>
+            <DockPanel x:Name="PreviewPanel" Grid.Row="4">
+                <Border DockPanel.Dock="Top" Background="{StaticResource Bar}" Padding="10,4">
+                    <TextBlock x:Name="PreviewTitle" Foreground="{StaticResource Muted}" FontSize="12" TextTrimming="CharacterEllipsis" Text="{local:L preview}"/>
+                </Border>
+                <ae:TextEditor x:Name="Preview" IsReadOnly="True" ShowLineNumbers="True" FontFamily="Cascadia Mono, Consolas" FontSize="12.5"
+                               LineNumbersForeground="#9CA3AF" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                               Padding="4,2" WordWrap="False"/>
+            </DockPanel>
+
+            <!-- Status -->
+            <Border Grid.Row="5" Background="{StaticResource Bar}" BorderBrush="{StaticResource Border}" BorderThickness="0,1,0,0" Padding="12,4">
+                <DockPanel>
+                    <TextBlock x:Name="IndexStatus" DockPanel.Dock="Right" Foreground="{StaticResource Muted}" FontSize="12"/>
+                    <TextBlock x:Name="Status" FontSize="12"/>
+                </DockPanel>
+            </Border>
+        </Grid>
+
+        <!-- Setup / scan overlay -->
+        <Grid x:Name="SetupOverlay" Background="#990F172A" Visibility="Collapsed">
+            <Border Background="White" CornerRadius="10" Padding="22" Width="760" MaxHeight="760" VerticalAlignment="Center" HorizontalAlignment="Center">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="24" ShadowDepth="4" Opacity="0.35"/>
+                </Border.Effect>
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Top">
+                        <TextBlock Text="{local:L setup_title}" FontSize="20" FontWeight="SemiBold"/>
+                        <TextBlock Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,4,0,12"
+                                   Text="{local:L setup_desc}"/>
+                    </StackPanel>
+
+                    <StackPanel DockPanel.Dock="Bottom" Margin="0,14,0,0">
+                        <ProgressBar x:Name="ScanProgressBar" Height="8" Visibility="Collapsed" Margin="0,0,0,6"/>
+                        <TextBlock x:Name="ScanText" Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,0,0,10"/>
+                        <DockPanel>
+                            <StackPanel x:Name="AdminPanel" Orientation="Horizontal" DockPanel.Dock="Left">
+                                <Button x:Name="AdminBtn" Style="{StaticResource Btn}" Click="Admin_Click"
+                                        ToolTip="{local:L admin_tip}" Content="{local:L admin_btn}"/>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button x:Name="CloseSetupBtn" Style="{StaticResource Btn}" Content="{local:L close}" Margin="0,0,8,0" Click="CloseSetup_Click"/>
+                                <Button x:Name="CancelScanBtn" Style="{StaticResource Btn}" Content="{local:L cancel_scan}" Margin="0,0,8,0" Click="CancelScan_Click" Visibility="Collapsed"/>
+                                <Button x:Name="StartScanBtn" Style="{StaticResource PrimaryBtn}" Content="{local:L start_scan}" Click="StartScan_Click"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </StackPanel>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="SetupForm">
+                            <TextBlock Text="{local:L lang}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                            <ComboBox x:Name="LangBox" Width="220" HorizontalAlignment="Left" Padding="6,4" Margin="0,0,0,14"
+                                      DisplayMemberPath="Display" SelectionChanged="LangBox_SelectionChanged"/>
+                            <TextBlock Text="{local:L drives}" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                            <ItemsControl x:Name="DriveList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding Selected}" Margin="0,3">
+                                            <TextBlock><Run Text="{Binding Label, Mode=OneWay}" FontWeight="SemiBold"/><Run Text="   "/><Run Text="{Binding Detail, Mode=OneWay}" Foreground="#6B7280"/></TextBlock>
+                                        </CheckBox>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <TextBlock Text="{local:L max_size}" FontWeight="SemiBold" Margin="0,14,0,4"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBox x:Name="MaxKbBox" Width="90" Padding="4,3" HorizontalContentAlignment="Right"/>
+                                <TextBlock Text="KB" VerticalAlignment="Center" Margin="6,0,14,0"/>
+                                <Button Style="{StaticResource Btn}" Padding="8,3" Margin="0,0,4,0" Tag="64" Click="Preset_Click">64 KB</Button>
+                                <Button Style="{StaticResource Btn}" Padding="8,3" Margin="0,0,4,0" Tag="256" Click="Preset_Click">256 KB</Button>
+                                <Button Style="{StaticResource Btn}" Padding="8,3" Margin="0,0,4,0" Tag="512" Click="Preset_Click">512 KB</Button>
+                                <Button Style="{StaticResource Btn}" Padding="8,3" Margin="0,0,4,0" Tag="1024" Click="Preset_Click">1 MB</Button>
+                                <Button Style="{StaticResource Btn}" Padding="8,3" Margin="0,0,4,0" Tag="4096" Click="Preset_Click">4 MB</Button>
+                            </StackPanel>
+
+                            <TextBlock Text="{local:L extensions}" FontWeight="SemiBold" Margin="0,14,0,4"/>
+                            <TextBox x:Name="ExtBox" Height="70" TextWrapping="Wrap" AcceptsReturn="False" Padding="4" VerticalScrollBarVisibility="Auto"
+                                     FontFamily="Cascadia Mono, Consolas" FontSize="12"/>
+
+                            <TextBlock Text="{local:L excludes}" FontWeight="SemiBold" Margin="0,14,0,4"/>
+                            <TextBox x:Name="ExcludeBox" Height="56" TextWrapping="Wrap" Padding="4" VerticalScrollBarVisibility="Auto"
+                                     FontFamily="Cascadia Mono, Consolas" FontSize="12"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>
